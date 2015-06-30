@@ -11,6 +11,9 @@
         "php": ">=5.3.0"
     },
     "autoload": {
+        "classmap": [
+            "src/engines"
+        ],
         "psr-4": {
             "higherchen\\view\\": "src/"
         }
