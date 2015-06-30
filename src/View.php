@@ -15,6 +15,16 @@ class View {
 	protected $path;
 
 	/**
+	 * @var string The addition engine
+	 */
+	protected $engine;
+
+	/**
+	 * @var object Engine instance
+	 */
+	public $engine_instance = null;
+
+	/**
 	 * Create a new view instance.
 	 *
 	 * @param  string  $view
@@ -22,37 +32,48 @@ class View {
 	 * @param  array   $data
 	 * @return void
 	 */
-	public function __construct($path, $data = []) {
+	public function __construct($path, $data = [], $engine = 'php') {
 		$this->path = rtrim($path, '/');
-
 		$this->data = (array) $data;
+		$this->engine = $engine;
+		if ($engine && $engine !== 'php') {
+			$classname = "higherchen\\view\\engines\\" . ucfirst($this->engine) . "Engine";
+			$this->engine_instance = new $classname;
+			$this->engine_instance->setPath($path);
+		}
 	}
 
 	/**
 	 * Get the string contents of the view.
 	 *
-	 * @param  \Closure|null  $callback
+	 * @param  string $callback
+	 * @param  array  $data
+	 * @param  bool   $display
 	 * @return string
 	 */
 	public function render($name, $data, $display = true) {
 		if (is_array($data)) {
 			$this->data = array_merge($this->data, $data);
 		}
-		extract($this->data);
+		if ($this->engine == 'php') {
+			extract($this->data);
 
-		$path = "{$this->path}/{$name}.php";
-		ob_start();
+			$path = "{$this->path}/{$name}.php";
+			ob_start();
 
-		if (version_compare(PHP_VERSION, '5.4') >= 0 && !ini_get('short_open_tag') && function_exists('eval')) {
-			echo eval('?>' . preg_replace('/;*\s*\?>/', '; ?>', str_replace('<?=', '<?php echo ', file_get_contents($path))));
+			if (version_compare(PHP_VERSION, '5.4') >= 0 && !ini_get('short_open_tag') && function_exists('eval')) {
+				echo eval('?>' . preg_replace('/;*\s*\?>/', '; ?>', str_replace('<?=', '<?php echo ', file_get_contents($path))));
+			} else {
+				include $path;
+			}
+
+			if ($display === false) {
+				$buffer = ob_get_contents();
+				@ob_end_clean();
+				return $buffer;
+			}
 		} else {
-			include $path;
-		}
-
-		if ($display === false) {
-			$buffer = ob_get_contents();
-			@ob_end_clean();
-			return $buffer;
+			$this->engine_instance->render($name, $this->data, $display);
 		}
 	}
 
